@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PricingLab — Bayesian A/B Test Engine | Aircall</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --aircall-blue: #0052FF;
+            --aircall-indigo: #4F46E5;
+            --aircall-violet: #7C3AED;
+            --teal: #14B8A6;
+            --amber: #F59E0B;
+            --rose: #F43F5E;
+            --emerald: #10B981;
+            --sky: #0EA5E9;
+            --bg-0: #09090B;
+            --bg-1: #111114;
+            --bg-2: #18181B;
+            --bg-3: #27272A;
+            --text-0: #FAFAFA;
+            --text-1: #A1A1AA;
+            --text-2: #71717A;
+            --border: #27272A;
+            --border-hover: #3F3F46;
+            --gradient-main: linear-gradient(135deg, #0052FF 0%, #7C3AED 50%, #F43F5E 100%);
+            --gradient-a: linear-gradient(135deg, #0052FF 0%, #4F46E5 100%);
+            --gradient-b: linear-gradient(135deg, #F43F5E 0%, #F59E0B 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-0);
+            color: var(--text-0);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            border-bottom: 1px solid var(--border);
+            padding: 0.7rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(24px);
+            background: rgba(9, 9, 11, 0.85);
+        }
+
+        .header-inner {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-mark {
+            width: 42px;
+            height: 42px;
+            background: var(--gradient-main);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            position: relative;
+        }
+
+        .logo-mark::after {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            background: var(--gradient-main);
+            border-radius: 13px;
+            z-index: -1;
+            opacity: 0.4;
+            filter: blur(10px);
+        }
+
+        .logo-name {
+            font-size: 1.45rem;
+            font-weight: 800;
+            background: var(--gradient-main);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-tag {
+            font-size: 0.55rem;
+            color: var(--text-2);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-weight: 600;
+        }
+
+        .header-pills {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .pill {
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            padding: 0.3rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.6rem;
+            color: var(--text-1);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .pill.active {
+            background: rgba(0, 82, 255, 0.15);
+            border-color: var(--aircall-blue);
+            color: var(--aircall-blue);
+        }
+
+        .pill.active::before {
+            content: '';
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            background: var(--aircall-blue);
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: blink 1.8s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Main */
+        .main {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem 3rem;
+        }
+
+        .hero-row {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-row h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 0.3rem;
+            background: var(--gradient-main);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-row p {
+            color: var(--text-1);
+            font-size: 0.95rem;
+        }
+
+        /* Grid */
+        .workspace {
+            display: grid;
+            grid-template-columns: 340px 1fr 340px;
+            gap: 1rem;
+        }
+
+        @media (max-width: 1400px) {
+            .workspace { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--bg-1);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .card-head {
+            padding: 0.85rem 1.15rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-head h3 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .card-body { padding: 1.15rem; }
+
+        /* Experiment Setup */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-1);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.4rem;
+            display: block;
+        }
+
+        .form-select, .form-input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            background: var(--bg-0);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-0);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.82rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-select:focus, .form-input:focus {
+            border-color: var(--aircall-blue);
+        }
+
+        .form-select option { background: var(--bg-1); }
+
+        .variant-card {
+            background: var(--bg-0);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.85rem;
+            margin-bottom: 0.6rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .variant-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+
+        .variant-card.a::before { background: var(--aircall-blue); }
+        .variant-card.b::before { background: var(--rose); }
+
+        .variant-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .variant-card.a .variant-label { color: var(--aircall-blue); }
+        .variant-card.b .variant-label { color: var(--rose); }
+
+        .variant-name {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .variant-desc {
+            font-size: 0.7rem;
+            color: var(--text-2);
+        }
+
+        .variant-price {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+
+        .variant-card.a .variant-price { color: var(--aircall-blue); }
+        .variant-card.b .variant-price { color: var(--rose); }
+
+        .run-btn {
+            width: 100%;
+            padding: 0.85rem;
+            background: var(--gradient-main);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 0.5rem;
+        }
+
+        .run-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 30px rgba(0, 82, 255, 0.3);
+        }
+
+        .run-btn:active { transform: scale(0.98); }
+
+        /* Center Column — Charts */
+        .chart-area {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .chart-canvas-wrap {
+            background: var(--bg-0);
+            border-radius: 10px;
+            padding: 1rem;
+            position: relative;
+            min-height: 220px;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .chart-label-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .chart-legend {
+            font-size: 0.7rem;
+            color: var(--text-1);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.a { background: var(--aircall-blue); }
+        .legend-dot.b { background: var(--rose); }
+        .legend-dot.diff { background: var(--emerald); }
+
+        /* KPI Row */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .kpi-box {
+            background: var(--bg-0);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.75rem;
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+
+        .kpi-box:hover { border-color: var(--border-hover); }
+
+        .kpi-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.35rem;
+            font-weight: 700;
+        }
+
+        .kpi-value.blue { color: var(--aircall-blue); }
+        .kpi-value.rose { color: var(--rose); }
+        .kpi-value.emerald { color: var(--emerald); }
+        .kpi-value.amber { color: var(--amber); }
+
+        .kpi-label {
+            font-size: 0.6rem;
+            color: var(--text-2);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 0.15rem;
+        }
+
+        /* Right Column — Results */
+        .result-block {
+            background: var(--bg-0);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .result-title {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-1);
+            margin-bottom: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .probability-bar-wrap {
+            background: var(--bg-2);
+            border-radius: 8px;
+            height: 32px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .prob-fill-a {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background: var(--gradient-a);
+            border-radius: 8px 0 0 8px;
+            transition: width 1s ease;
+            display: flex;
+            align-items: center;
+            padding-left: 0.5rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .prob-fill-b {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            background: var(--gradient-b);
+            border-radius: 0 8px 8px 0;
+            transition: width 1s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 0.5rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .verdict-box {
+            background: var(--bg-2);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .verdict-icon {
+            font-size: 2rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .verdict-text {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .verdict-sub {
+            font-size: 0.72rem;
+            color: var(--text-2);
+            margin-top: 0.2rem;
+        }
+
+        /* Revenue Impact */
+        .revenue-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        .revenue-box {
+            background: var(--bg-2);
+            border-radius: 8px;
+            padding: 0.75rem;
+            text-align: center;
+        }
+
+        .revenue-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .revenue-label {
+            font-size: 0.6rem;
+            color: var(--text-2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Sample size */
+        .sample-bar {
+            margin-top: 0.5rem;
+        }
+
+        .sample-track {
+            height: 8px;
+            background: var(--bg-2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .sample-fill {
+            height: 100%;
+            background: var(--gradient-main);
+            border-radius: 4px;
+            transition: width 1.5s ease;
+        }
+
+        .sample-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.3rem;
+        }
+
+        .sample-info span {
+            font-size: 0.65rem;
+            color: var(--text-2);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Log */
+        .sim-log {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .sim-log-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.45rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.72rem;
+            animation: fadeUp 0.3s ease;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .sim-log-time {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-2);
+            font-size: 0.62rem;
+            min-width: 50px;
+        }
+
+        .sim-log-msg { color: var(--text-1); }
+
+        /* Processing overlay */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(9, 9, 11, 0.96);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .overlay.active { display: flex; }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--bg-3);
+            border-top-color: var(--aircall-blue);
+            border-right-color: var(--aircall-violet);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 1.5rem;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .overlay-text {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
+
+        .overlay-sub {
+            font-size: 0.8rem;
+            color: var(--text-2);
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 1.2rem;
+        }
+
+        .overlay-bar {
+            width: 250px;
+            height: 4px;
+            background: var(--bg-3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .overlay-fill {
+            height: 100%;
+            background: var(--gradient-main);
+            width: 0%;
+            transition: width 0.2s;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 1.25rem;
+            right: 1.25rem;
+            background: var(--bg-1);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.75rem 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+            transform: translateY(80px);
+            opacity: 0;
+            transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+            z-index: 1000;
+        }
+
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast-icon { font-size: 1.1rem; }
+        .toast-title { font-size: 0.8rem; font-weight: 600; }
+        .toast-msg { font-size: 0.65rem; color: var(--text-2); }
+
+        /* Credible Interval bars */
+        .ci-bar-wrap {
+            margin-bottom: 0.6rem;
+        }
+
+        .ci-label-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.3rem;
+        }
+
+        .ci-label {
+            font-size: 0.68rem;
+            font-weight: 600;
+        }
+
+        .ci-value {
+            font-size: 0.68rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-1);
+        }
+
+        .ci-track {
+            height: 20px;
+            background: var(--bg-2);
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ci-range {
+            position: absolute;
+            top: 3px;
+            height: 14px;
+            border-radius: 4px;
+            opacity: 0.7;
+            transition: all 1s ease;
+        }
+
+        .ci-median {
+            position: absolute;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: white;
+            transition: left 1s ease;
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-0); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <div class="logo-area">
+                <div class="logo-mark">⚗️</div>
+                <div>
+                    <div class="logo-name">PricingLab</div>
+                    <div class="logo-tag">Aircall Experimentation Engine</div>
+                </div>
+            </div>
+            <div class="header-pills">
+                <span class="pill active">Experiment Running</span>
+                <span class="pill">Bayesian Inference</span>
+                <span class="pill">Monte Carlo · 50k samples</span>
+                <span class="pill">Beta-Binomial</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="hero-row">
+            <h1>⚗️ Bayesian Pricing Experiment Engine</h1>
+            <p>Design, simulate & analyze pricing A/B tests with credible intervals — not p-values</p>
+        </div>
+
+        <div class="workspace">
+            <!-- LEFT: Experiment Setup -->
+            <div style="display:flex;flex-direction:column;gap:1rem;">
+                <div class="card">
+                    <div class="card-head">
+                        <h3>🧪 Experiment Setup</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Experiment Type</label>
+                            <select class="form-select" id="expType" onchange="updateVariants()">
+                                <option value="bundle">AI Bundle vs. À la Carte</option>
+                                <option value="tier">Professional vs. Growth Tier</option>
+                                <option value="voice">Voice Agent Pricing Model</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Primary Metric</label>
+                            <select class="form-select" id="metric">
+                                <option value="conversion">Conversion Rate</option>
+                                <option value="arpu">ARPU (Avg Revenue/User)</option>
+                                <option value="expansion">Expansion Revenue</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Traffic Split</label>
+                            <select class="form-select" id="split">
+                                <option value="50">50/50</option>
+                                <option value="70">70/30 (Control heavy)</option>
+                                <option value="80">80/20 (Conservative)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Sample Size Target</label>
+                            <input class="form-input" type="number" id="sampleTarget" value="5000" min="500" max="50000" step="500">
+                        </div>
+
+                        <div class="variant-card a" id="variantA">
+                            <div class="variant-label">Control — Variant A</div>
+                            <div class="variant-name" id="varAName">Separate Add-ons</div>
+                            <div class="variant-desc" id="varADesc">AI Assist $9 + Analytics+ $15 + WhatsApp $10</div>
+                            <div class="variant-price" id="varAPrice">$34/mo</div>
+                        </div>
+
+                        <div class="variant-card b" id="variantB">
+                            <div class="variant-label">Treatment — Variant B</div>
+                            <div class="variant-name" id="varBName">AI Starter Bundle</div>
+                            <div class="variant-desc" id="varBDesc">All AI features bundled at a discount</div>
+                            <div class="variant-price" id="varBPrice">$24/mo</div>
+                        </div>
+
+                        <button class="run-btn" id="runBtn" onclick="runExperiment()">
+                            ▶ Run Bayesian Simulation
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head">
+                        <h3>📜 Simulation Log</h3>
+                        <span style="font-size:0.6rem;color:var(--text-2)" id="logCount">0 events</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="sim-log" id="simLog">
+                            <div style="color:var(--text-2);font-size:0.75rem;text-align:center;padding:1rem;">Configure & run experiment to see logs</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CENTER: Charts -->
+            <div class="chart-area">
+                <div class="kpi-row">
+                    <div class="kpi-box">
+                        <div class="kpi-value blue" id="kpiConvA">—</div>
+                        <div class="kpi-label">Conv. Rate A</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-value rose" id="kpiConvB">—</div>
+                        <div class="kpi-label">Conv. Rate B</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-value emerald" id="kpiLift">—</div>
+                        <div class="kpi-label">Relative Lift</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-value amber" id="kpiRope">—</div>
+                        <div class="kpi-label">ROPE Prob.</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head">
+                        <h3>📊 Posterior Distributions</h3>
+                        <div class="chart-label-bar">
+                            <span class="chart-legend"><span class="legend-dot a"></span> Variant A</span>
+                            <span class="chart-legend"><span class="legend-dot b"></span> Variant B</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-canvas-wrap">
+                            <canvas id="posteriorChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head">
+                        <h3>📈 Cumulative Conversion Over Time</h3>
+                        <div class="chart-label-bar">
+                            <span class="chart-legend"><span class="legend-dot a"></span> Variant A</span>
+                            <span class="chart-legend"><span class="legend-dot b"></span> Variant B</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-canvas-wrap">
+                            <canvas id="timeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head">
+                        <h3>🎯 Lift Distribution (B − A)</h3>
+                        <div class="chart-label-bar">
+                            <span class="chart-legend"><span class="legend-dot diff"></span> Lift %</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-canvas-wrap">
+                            <canvas id="liftChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Results -->
+            <div style="display:flex;flex-direction:column;gap:1rem;">
+                <div class="card">
+                    <div class="card-head">
+                        <h3>🏆 Bayesian Verdict</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="verdict-box" id="verdictBox">
+                            <div class="verdict-icon" id="verdictIcon">⏳</div>
+                            <div class="verdict-text" id="verdictText">Awaiting Simulation</div>
+                            <div class="verdict-sub" id="verdictSub">Run the experiment to see results</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head">
+                        <h3>📐 Win Probability</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="result-block">
+                            <div class="probability-bar-wrap">
+                                <div class="prob-fill-a" id="probA" style="width:50%;">50%</div>
+                                <div class="prob-fill-b" id="probB" style="width:50%;">50%</div>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-2);">
+                                <span>Variant A</span>
+                                <span>Variant B</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head">
+                        <h3>📏 Credible Intervals (95%)</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="ci-bar-wrap">
+                            <div class="ci-label-row">
+                                <span class="ci-label" style="color:var(--aircall-blue);">Variant A</span>
+                                <span class="ci-value" id="ciAText">—</span>
+                            </div>
+                            <div class="ci-track">
+                                <div class="ci-range" id="ciARng" style="left:30%;width:30%;background:var(--aircall-blue);"></div>
+                                <div class="ci-median" id="ciAMed" style="left:45%;"></div>
+                            </div>
+                        </div>
+                        <div class="ci-bar-wrap">
+                            <div class="ci-label-row">
+                                <span class="ci-label" style="color:var(--rose);">Variant B</span>
+                                <span class="ci-value" id="ciBText">—</span>
+                            </div>
+                            <div class="ci-track">
+                                <div class="ci-range" id="ciBRng" style="left:30%;width:30%;background:var(--rose);"></div>
+                                <div class="ci-median" id="ciBMed" style="left:45%;"></div>
+                            </div>
+                        </div>
+                        <div class="ci-bar-wrap">
+                            <div class="ci-label-row">
+                                <span class="ci-label" style="color:var(--emerald);">Lift (B−A)</span>
+                                <span class="ci-value" id="ciLiftText">—</span>
+                            </div>
+                            <div class="ci-track">
+                                <div class="ci-range" id="ciLiftRng" style="left:30%;width:30%;background:var(--emerald);"></div>
+                                <div class="ci-median" id="ciLiftMed" style="left:45%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head">
+                        <h3>💰 Revenue Impact</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="result-block">
+                            <div class="revenue-row">
+                                <div class="revenue-box">
+                                    <div class="revenue-val" style="color:var(--emerald);" id="revUp">—</div>
+                                    <div class="revenue-label">Monthly MRR Uplift</div>
+                                </div>
+                                <div class="revenue-box">
+                                    <div class="revenue-val" style="color:var(--sky);" id="revAnnual">—</div>
+                                    <div class="revenue-label">Annual Impact</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head">
+                        <h3>📊 Sample Progress</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="sample-bar">
+                            <div class="sample-track">
+                                <div class="sample-fill" id="sampleFill" style="width:0%;"></div>
+                            </div>
+                            <div class="sample-info">
+                                <span id="sampleCurrent">0</span>
+                                <span id="sampleGoal">/ 5,000</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Overlay -->
+    <div class="overlay" id="overlay">
+        <div class="spinner"></div>
+        <div class="overlay-text">Running Bayesian Simulation</div>
+        <div class="overlay-sub" id="overlaySub">Sampling posterior distributions...</div>
+        <div class="overlay-bar">
+            <div class="overlay-fill" id="overlayFill"></div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <span class="toast-icon" id="toastIcon">✅</span>
+        <div>
+            <div class="toast-title" id="toastTitle">Success</div>
+            <div class="toast-msg" id="toastMsg">—</div>
+        </div>
+    </div>
+
+    <script>
+        // ═══ DATA ENGINE ═══
+        const experiments = {
+            bundle: {
+                aName: 'Separate Add-ons', aDesc: 'AI Assist $9 + Analytics+ $15 + WhatsApp $10', aPrice: '$34/mo',
+                bName: 'AI Starter Bundle', bDesc: 'All AI features bundled at a discount', bPrice: '$24/mo',
+                baseRateA: 0.082, baseRateB: 0.118
+            },
+            tier: {
+                aName: 'Professional $50/license', aDesc: 'Current tier with standard features', aPrice: '$50/mo',
+                bName: 'Growth Tier $65/license', bDesc: 'New tier with AI Assist + Analytics+ included', bPrice: '$65/mo',
+                baseRateA: 0.145, baseRateB: 0.132
+            },
+            voice: {
+                aName: 'Per-Minute Pricing', aDesc: '$0.99/min flat rate for AI Voice Agent', aPrice: '$0.99/min',
+                bName: 'Tiered Minutes Bundle', bDesc: '500 min included, $0.49/min overage', bPrice: '$199/mo',
+                baseRateA: 0.063, baseRateB: 0.091
+            }
+        };
+
+        let simRunning = false;
+        let simInterval = null;
+        let currentSamples = 0;
+        let logIdx = 0;
+        let convA = [], convB = [], timeSeriesA = [], timeSeriesB = [];
+
+        function updateVariants() {
+            const exp = experiments[document.getElementById('expType').value];
+            document.getElementById('varAName').textContent = exp.aName;
+            document.getElementById('varADesc').textContent = exp.aDesc;
+            document.getElementById('varAPrice').textContent = exp.aPrice;
+            document.getElementById('varBName').textContent = exp.bName;
+            document.getElementById('varBDesc').textContent = exp.bDesc;
+            document.getElementById('varBPrice').textContent = exp.bPrice;
+        }
+
+        // ═══ BAYESIAN MATH ═══
+        function betaSample(alpha, beta) {
+            // Jöhnk's algorithm for beta distribution sampling
+            let u, v, x, y;
+            if (alpha < 1 && beta < 1) {
+                while (true) {
+                    u = Math.random();
+                    v = Math.random();
+                    x = Math.pow(u, 1 / alpha);
+                    y = Math.pow(v, 1 / beta);
+                    if (x + y <= 1) return x / (x + y);
+                }
+            }
+            // Use gamma ratio for alpha, beta >= 1
+            const ga = gammaSample(alpha);
+            const gb = gammaSample(beta);
+            return ga / (ga + gb);
+        }
+
+        function gammaSample(shape) {
+            if (shape < 1) {
+                return gammaSample(shape + 1) * Math.pow(Math.random(), 1 / shape);
+            }
+            const d = shape - 1/3;
+            const c = 1 / Math.sqrt(9 * d);
+            while (true) {
+                let x, v;
+                do {
+                    x = randn();
+                    v = 1 + c * x;
+                } while (v <= 0);
+                v = v * v * v;
+                const u = Math.random();
+                if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+                if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+            }
+        }
+
+        function randn() {
+            let u = 0, v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+        }
+
+        function posteriorSamples(successes, trials, nSamples) {
+            const alpha = 1 + successes;
+            const beta = 1 + trials - successes;
+            const samples = [];
+            for (let i = 0; i < nSamples; i++) {
+                samples.push(betaSample(alpha, beta));
+            }
+            return samples;
+        }
+
+        function percentile(arr, p) {
+            const sorted = [...arr].sort((a, b) => a - b);
+            const idx = Math.floor(p * sorted.length);
+            return sorted[idx];
+        }
+
+        function histogram(arr, bins, lo, hi) {
+            const counts = new Array(bins).fill(0);
+            const step = (hi - lo) / bins;
+            arr.forEach(v => {
+                const idx = Math.min(Math.floor((v - lo) / step), bins - 1);
+                if (idx >= 0) counts[idx]++;
+            });
+            return counts.map(c => c / arr.length);
+        }
+
+        // ═══ CHART DRAWING (Pure Canvas) ═══
+        function drawPosterior(samplesA, samplesB) {
+            const canvas = document.getElementById('posteriorChart');
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = 220 * dpr;
+            canvas.style.height = '220px';
+            ctx.scale(dpr, dpr);
+            const W = rect.width, H = 220;
+
+            const allVals = [...samplesA, ...samplesB];
+            const lo = Math.max(0, percentile(allVals, 0.005) - 0.01);
+            const hi = percentile(allVals, 0.995) + 0.01;
+            const bins = 60;
+
+            const histA = histogram(samplesA, bins, lo, hi);
+            const histB = histogram(samplesB, bins, lo, hi);
+            const maxY = Math.max(...histA, ...histB) * 1.15;
+
+            ctx.clearRect(0, 0, W, H);
+
+            // Grid
+            ctx.strokeStyle = '#27272A';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 4; i++) {
+                const y = H - 30 - (i / 4) * (H - 50);
+                ctx.beginPath();
+                ctx.moveTo(50, y);
+                ctx.lineTo(W - 10, y);
+                ctx.stroke();
+            }
+
+            const barW = (W - 60) / bins;
+
+            // Draw A
+            ctx.fillStyle = 'rgba(0, 82, 255, 0.35)';
+            histA.forEach((v, i) => {
+                const x = 50 + i * barW;
+                const h = (v / maxY) * (H - 50);
+                ctx.fillRect(x, H - 30 - h, barW - 1, h);
+            });
+
+            // Draw B
+            ctx.fillStyle = 'rgba(244, 63, 94, 0.35)';
+            histB.forEach((v, i) => {
+                const x = 50 + i * barW;
+                const h = (v / maxY) * (H - 50);
+                ctx.fillRect(x, H - 30 - h, barW - 1, h);
+            });
+
+            // Lines on top
+            drawSmoothLine(ctx, histA, maxY, bins, barW, 50, H, '#0052FF');
+            drawSmoothLine(ctx, histB, maxY, bins, barW, 50, H, '#F43F5E');
+
+            // X axis labels
+            ctx.fillStyle = '#71717A';
+            ctx.font = '10px JetBrains Mono';
+            ctx.textAlign = 'center';
+            for (let i = 0; i <= 5; i++) {
+                const val = lo + (i / 5) * (hi - lo);
+                const x = 50 + (i / 5) * (W - 60);
+                ctx.fillText((val * 100).toFixed(1) + '%', x, H - 10);
+            }
+
+            ctx.fillStyle = '#71717A';
+            ctx.font = '10px DM Sans';
+            ctx.textAlign = 'center';
+            ctx.fillText('Conversion Rate', W / 2, H - 0);
+        }
+
+        function drawSmoothLine(ctx, hist, maxY, bins, barW, offsetX, H, color) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            hist.forEach((v, i) => {
+                const x = offsetX + i * barW + barW / 2;
+                const y = H - 30 - (v / maxY) * (H - 50);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        function drawTimeSeries(seriesA, seriesB) {
+            const canvas = document.getElementById('timeChart');
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = 200 * dpr;
+            canvas.style.height = '200px';
+            ctx.scale(dpr, dpr);
+            const W = rect.width, H = 200;
+
+            ctx.clearRect(0, 0, W, H);
+
+            if (seriesA.length < 2) return;
+
+            const allVals = [...seriesA, ...seriesB];
+            const minY = Math.max(0, Math.min(...allVals) - 0.01);
+            const maxY = Math.max(...allVals) + 0.01;
+
+            // Grid
+            ctx.strokeStyle = '#27272A';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 4; i++) {
+                const y = H - 30 - (i / 4) * (H - 50);
+                ctx.beginPath();
+                ctx.moveTo(50, y);
+                ctx.lineTo(W - 10, y);
+                ctx.stroke();
+                ctx.fillStyle = '#71717A';
+                ctx.font = '9px JetBrains Mono';
+                ctx.textAlign = 'right';
+                const val = minY + (i / 4) * (maxY - minY);
+                ctx.fillText((val * 100).toFixed(1) + '%', 46, y + 3);
+            }
+
+            function plotLine(series, color) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                series.forEach((v, i) => {
+                    const x = 50 + (i / (series.length - 1)) * (W - 60);
+                    const y = H - 30 - ((v - minY) / (maxY - minY)) * (H - 50);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            }
+
+            plotLine(seriesA, '#0052FF');
+            plotLine(seriesB, '#F43F5E');
+
+            // X axis
+            ctx.fillStyle = '#71717A';
+            ctx.font = '10px DM Sans';
+            ctx.textAlign = 'center';
+            ctx.fillText('Sample Observations', W / 2, H - 2);
+        }
+
+        function drawLiftDist(liftSamples) {
+            const canvas = document.getElementById('liftChart');
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = 200 * dpr;
+            canvas.style.height = '200px';
+            ctx.scale(dpr, dpr);
+            const W = rect.width, H = 200;
+
+            ctx.clearRect(0, 0, W, H);
+
+            const lo = percentile(liftSamples, 0.005);
+            const hi = percentile(liftSamples, 0.995);
+            const bins = 50;
+            const hist = histogram(liftSamples, bins, lo, hi);
+            const maxY = Math.max(...hist) * 1.15;
+            const barW = (W - 60) / bins;
+
+            // Bars colored by sign
+            hist.forEach((v, i) => {
+                const val = lo + (i / bins) * (hi - lo);
+                const x = 50 + i * barW;
+                const h = (v / maxY) * (H - 50);
+                ctx.fillStyle = val >= 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(244, 63, 94, 0.3)';
+                ctx.fillRect(x, H - 30 - h, barW - 1, h);
+            });
+
+            // Zero line
+            const zeroX = 50 + ((0 - lo) / (hi - lo)) * (W - 60);
+            if (zeroX >= 50 && zeroX <= W - 10) {
+                ctx.strokeStyle = '#71717A';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(zeroX, 20);
+                ctx.lineTo(zeroX, H - 30);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#71717A';
+                ctx.font = '9px JetBrains Mono';
+                ctx.textAlign = 'center';
+                ctx.fillText('0%', zeroX, 14);
+            }
+
+            // X axis
+            ctx.fillStyle = '#71717A';
+            ctx.font = '10px JetBrains Mono';
+            ctx.textAlign = 'center';
+            for (let i = 0; i <= 5; i++) {
+                const val = lo + (i / 5) * (hi - lo);
+                const x = 50 + (i / 5) * (W - 60);
+                ctx.fillText((val * 100).toFixed(1) + '%', x, H - 10);
+            }
+
+            drawSmoothLine(ctx, hist, maxY, bins, barW, 50, H, '#10B981');
+        }
+
+        // ═══ EXPERIMENT ENGINE ═══
+        function runExperiment() {
+            if (simRunning) return;
+
+            const overlay = document.getElementById('overlay');
+            const overlayFill = document.getElementById('overlayFill');
+            const overlaySub = document.getElementById('overlaySub');
+            overlay.classList.add('active');
+
+            const stages = [
+                'Initializing Beta priors (α=1, β=1)...',
+                'Generating synthetic user journeys...',
+                'Computing posterior distributions...',
+                'Running Monte Carlo (50,000 draws)...',
+                'Calculating credible intervals...',
+                'Computing expected revenue impact...',
+                'Finalizing Bayesian verdict...'
+            ];
+
+            let progress = 0;
+            let stageIdx = 0;
+            overlayFill.style.width = '0%';
+
+            const loadInterval = setInterval(() => {
+                progress += Math.random() * 16 + 6;
+                if (progress > 100) progress = 100;
+                overlayFill.style.width = progress + '%';
+
+                const newStage = Math.floor((progress / 100) * stages.length);
+                if (newStage !== stageIdx && newStage < stages.length) {
+                    stageIdx = newStage;
+                    overlaySub.textContent = stages[stageIdx];
+                }
+
+                if (progress >= 100) {
+                    clearInterval(loadInterval);
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                        startSimulation();
+                    }, 300);
+                }
+            }, 70);
+        }
+
+        function startSimulation() {
+            simRunning = true;
+            currentSamples = 0;
+            logIdx = 0;
+            convA = [];
+            convB = [];
+            timeSeriesA = [];
+            timeSeriesB = [];
+
+            const expType = document.getElementById('expType').value;
+            const exp = experiments[expType];
+            const target = parseInt(document.getElementById('sampleTarget').value) || 5000;
+            let succA = 0, succB = 0;
+            let trialsA = 0, trialsB = 0;
+
+            document.getElementById('simLog').innerHTML = '';
+            document.getElementById('sampleGoal').textContent = `/ ${target.toLocaleString()}`;
+
+            addLog('🧪', 'Experiment started');
+            addLog('📊', `Prior: Beta(1, 1) — Uninformative`);
+            addLog('🎯', `Target: ${target.toLocaleString()} observations`);
+
+            simInterval = setInterval(() => {
+                const batch = Math.min(Math.floor(Math.random() * 80 + 30), target - currentSamples);
+                if (batch <= 0 || currentSamples >= target) {
+                    clearInterval(simInterval);
+                    simRunning = false;
+                    finalize(succA, trialsA, succB, trialsB, exp);
+                    return;
+                }
+
+                // Simulate conversions
+                const splitRatio = parseInt(document.getElementById('split').value) / 100;
+                const batchA = Math.floor(batch * splitRatio);
+                const batchB = batch - batchA;
+
+                const rateA = exp.baseRateA + (Math.random() - 0.5) * 0.01;
+                const rateB = exp.baseRateB + (Math.random() - 0.5) * 0.01;
+
+                for (let i = 0; i < batchA; i++) {
+                    trialsA++;
+                    if (Math.random() < rateA) succA++;
+                }
+                for (let i = 0; i < batchB; i++) {
+                    trialsB++;
+                    if (Math.random() < rateB) succB++;
+                }
+
+                currentSamples += batch;
+                timeSeriesA.push(trialsA > 0 ? succA / trialsA : 0);
+                timeSeriesB.push(trialsB > 0 ? succB / trialsB : 0);
+
+                // Update UI
+                updateLiveStats(succA, trialsA, succB, trialsB, target);
+
+                // Periodic logging
+                if (currentSamples % 500 < 110) {
+                    const pctDone = ((currentSamples / target) * 100).toFixed(0);
+                    addLog('📈', `${pctDone}% — A: ${(succA/trialsA*100).toFixed(2)}% | B: ${(succB/trialsB*100).toFixed(2)}%`);
+                }
+
+                // Draw charts every few ticks
+                if (timeSeriesA.length % 3 === 0 || currentSamples >= target) {
+                    const postA = posteriorSamples(succA, trialsA, 5000);
+                    const postB = posteriorSamples(succB, trialsB, 5000);
+                    drawPosterior(postA, postB);
+                    drawTimeSeries(timeSeriesA, timeSeriesB);
+
+                    const lift = postB.map((v, i) => (v - postA[i]) / postA[i]);
+                    drawLiftDist(lift);
+                }
+            }, 60);
+
+            showToast('🚀', 'Simulation Started', 'Bayesian engine running...');
+        }
+
+        function updateLiveStats(succA, trialsA, succB, trialsB, target) {
+            const rateA = trialsA > 0 ? succA / trialsA : 0;
+            const rateB = trialsB > 0 ? succB / trialsB : 0;
+            const lift = rateA > 0 ? ((rateB - rateA) / rateA) * 100 : 0;
+
+            document.getElementById('kpiConvA').textContent = (rateA * 100).toFixed(2) + '%';
+            document.getElementById('kpiConvB').textContent = (rateB * 100).toFixed(2) + '%';
+            document.getElementById('kpiLift').textContent = (lift >= 0 ? '+' : '') + lift.toFixed(1) + '%';
+
+            // Quick win probability estimate
+            const postA = posteriorSamples(succA, trialsA, 2000);
+            const postB = posteriorSamples(succB, trialsB, 2000);
+            let bWins = 0;
+            const rope = 0.005;
+            let ropeCount = 0;
+            for (let i = 0; i < postA.length; i++) {
+                if (postB[i] > postA[i]) bWins++;
+                if (Math.abs(postB[i] - postA[i]) < rope) ropeCount++;
+            }
+            const probB = bWins / postA.length;
+            const probA = 1 - probB;
+            const probRope = ropeCount / postA.length;
+
+            document.getElementById('kpiRope').textContent = (probRope * 100).toFixed(1) + '%';
+
+            document.getElementById('probA').style.width = (probA * 100).toFixed(0) + '%';
+            document.getElementById('probA').textContent = (probA * 100).toFixed(0) + '%';
+            document.getElementById('probB').style.width = (probB * 100).toFixed(0) + '%';
+            document.getElementById('probB').textContent = (probB * 100).toFixed(0) + '%';
+
+            // CI
+            updateCI('A', postA, '#0052FF');
+            updateCI('B', postB, '#F43F5E');
+            const liftSamp = postB.map((v, i) => v - postA[i]);
+            updateCILift(liftSamp);
+
+            // Sample progress
+            const pct = Math.min((currentSamples / target) * 100, 100);
+            document.getElementById('sampleFill').style.width = pct + '%';
+            document.getElementById('sampleCurrent').textContent = currentSamples.toLocaleString();
+        }
+
+        function updateCI(variant, samples, color) {
+            const lo = percentile(samples, 0.025);
+            const hi = percentile(samples, 0.975);
+            const med = percentile(samples, 0.5);
+            const scaleMin = Math.max(0, lo - 0.02);
+            const scaleMax = hi + 0.02;
+
+            document.getElementById(`ci${variant}Text`).textContent =
+                `[${(lo*100).toFixed(2)}%, ${(hi*100).toFixed(2)}%]`;
+            document.getElementById(`ci${variant}Rng`).style.left =
+                ((lo - scaleMin) / (scaleMax - scaleMin) * 100) + '%';
+            document.getElementById(`ci${variant}Rng`).style.width =
+                ((hi - lo) / (scaleMax - scaleMin) * 100) + '%';
+            document.getElementById(`ci${variant}Med`).style.left =
+                ((med - scaleMin) / (scaleMax - scaleMin) * 100) + '%';
+        }
+
+        function updateCILift(liftSamples) {
+            const lo = percentile(liftSamples, 0.025);
+            const hi = percentile(liftSamples, 0.975);
+            const med = percentile(liftSamples, 0.5);
+            const scaleMin = lo - 0.01;
+            const scaleMax = hi + 0.01;
+
+            document.getElementById('ciLiftText').textContent =
+                `[${(lo*100).toFixed(2)}%, ${(hi*100).toFixed(2)}%]`;
+            document.getElementById('ciLiftRng').style.left =
+                ((lo - scaleMin) / (scaleMax - scaleMin) * 100) + '%';
+            document.getElementById('ciLiftRng').style.width =
+                ((hi - lo) / (scaleMax - scaleMin) * 100) + '%';
+            document.getElementById('ciLiftMed').style.left =
+                ((med - scaleMin) / (scaleMax - scaleMin) * 100) + '%';
+        }
+
+        function finalize(succA, trialsA, succB, trialsB, exp) {
+            const postA = posteriorSamples(succA, trialsA, 50000);
+            const postB = posteriorSamples(succB, trialsB, 50000);
+            const lift = postB.map((v, i) => (v - postA[i]) / postA[i]);
+
+            drawPosterior(postA, postB);
+            drawTimeSeries(timeSeriesA, timeSeriesB);
+            drawLiftDist(lift);
+
+            let bWins = 0;
+            for (let i = 0; i < postA.length; i++) {
+                if (postB[i] > postA[i]) bWins++;
+            }
+            const probBWins = bWins / postA.length;
+
+            // Verdict
+            const verdictIcon = document.getElementById('verdictIcon');
+            const verdictText = document.getElementById('verdictText');
+            const verdictSub = document.getElementById('verdictSub');
+
+            if (probBWins > 0.95) {
+                verdictIcon.textContent = '🏆';
+                verdictText.textContent = 'Variant B Wins';
+                verdictText.style.color = '#10B981';
+                verdictSub.textContent = `${(probBWins*100).toFixed(1)}% probability of being better`;
+            } else if (probBWins < 0.05) {
+                verdictIcon.textContent = '🛡️';
+                verdictText.textContent = 'Variant A Wins';
+                verdictText.style.color = '#0052FF';
+                verdictSub.textContent = `${((1-probBWins)*100).toFixed(1)}% probability of being better`;
+            } else {
+                verdictIcon.textContent = '⚖️';
+                verdictText.textContent = 'Inconclusive';
+                verdictText.style.color = '#F59E0B';
+                verdictSub.textContent = 'Collect more data or widen ROPE';
+            }
+
+            // Revenue
+            const medLift = percentile(lift, 0.5);
+            const baseMRR = 22000 * 50; // 22k customers * $50 avg
+            const mrrUplift = baseMRR * medLift;
+            document.getElementById('revUp').textContent =
+                (mrrUplift >= 0 ? '+' : '') + '$' + Math.abs(Math.round(mrrUplift)).toLocaleString();
+            document.getElementById('revAnnual').textContent =
+                (mrrUplift >= 0 ? '+' : '') + '$' + Math.abs(Math.round(mrrUplift * 12)).toLocaleString();
+
+            addLog('✅', 'Simulation complete — 50,000 posterior draws');
+            addLog('🏆', `Winner: ${probBWins > 0.5 ? 'Variant B' : 'Variant A'} (${(Math.max(probBWins, 1-probBWins)*100).toFixed(1)}%)`);
+            showToast('✅', 'Simulation Complete', 'Bayesian analysis finished');
+        }
+
+        function addLog(icon, msg) {
+            const log = document.getElementById('simLog');
+            const item = document.createElement('div');
+            item.className = 'sim-log-item';
+            const now = new Date();
+            const time = now.toLocaleTimeString('en', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            item.innerHTML = `
+                <span class="sim-log-time">${time}</span>
+                <span>${icon}</span>
+                <span class="sim-log-msg">${msg}</span>
+            `;
+            log.insertBefore(item, log.firstChild);
+            logIdx++;
+            document.getElementById('logCount').textContent = `${logIdx} events`;
+        }
+
+        function showToast(icon, title, msg) {
+            document.getElementById('toastIcon').textContent = icon;
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastMsg').textContent = msg;
+            const t = document.getElementById('toast');
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        // Init
+        updateVariants();
+        // Draw empty charts
+        setTimeout(() => {
+            drawPosterior([0.1], [0.1]);
+            drawTimeSeries([], []);
+            drawLiftDist([0]);
+        }, 100);
+
+        window.addEventListener('resize', () => {
+            if (timeSeriesA.length > 1) {
+                drawTimeSeries(timeSeriesA, timeSeriesB);
+            }
+        });
+    </script>
+</body>
+</html>
